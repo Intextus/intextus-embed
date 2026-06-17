@@ -9,16 +9,6 @@ By replacing massive deep learning libraries with highly optimized, compiled C++
 
 ---
 
-## Key Features
-
-- **No PyTorch or Transformers:** Fully decoupled from the heavy standard library pipeline. A simple `pip install` completes in seconds.
-- **Micro Memory Footprint:** Executes multi-vector graphs inside ONNX Runtime, drawing less than 65MB of RAM during inference.
-- **Fast Rust Tokenization:** Uses Hugging Face's raw Rust tokenization backend directly.
-- **Dynamic Punctuation Skiplist:** Dynamically parses `tokenizer.json` at initialization, creating a zero-overhead mask to discard punctuation vectors, matching ColBERT index-saving behaviors.
-- **Standardized Late Interaction:** Exposes native NumPy-based MaxSim calculations.
-
----
-
 ## Installation
 
 Install the library directly via pip:
