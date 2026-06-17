@@ -70,28 +70,6 @@ print(f"Relevance Score (MaxSim): {score:.4f}")
 
 ---
 
-## 📂 Pre-Exported Models
-
-To make deployments as seamless as possible, you do not need to deal with PyTorch, Transformers, or the ONNX export process. We provide the pre-compiled, optimized ONNX models and their corresponding tokenizer files directly from our public organization repository.
-
-### Downloading the Models
-You can fetch the model files from our public Hugging Face registry:
-
-```bash
-# Option 1: Download mxbai-edge-colbert-v0-17m-onnx (Default)
-wget https://huggingface.co/intextus/mxbai-edge-colbert-v0-17m-onnx/resolve/main/model.onnx
-wget https://huggingface.co/intextus/mxbai-edge-colbert-v0-17m-onnx/resolve/main/tokenizer.json
-
-# Option 2: Download mxbai-edge-colbert-v0-32m-onnx
-wget https://huggingface.co/intextus/mxbai-edge-colbert-v0-32m-onnx/resolve/main/model.onnx
-wget https://huggingface.co/intextus/mxbai-edge-colbert-v0-32m-onnx/resolve/main/tokenizer.json
-
-# Option 3: Download lateon-onnx
-wget https://huggingface.co/intextus/lateon-onnx/resolve/main/model.onnx
-wget https://huggingface.co/intextus/lateon-onnx/resolve/main/tokenizer.json
-```
-Once downloaded locally, you can pass their directory path directly to `IntextusEncoder` (e.g. `IntextusEncoder("./my_model_dir")`).
-
 
 ---
 
