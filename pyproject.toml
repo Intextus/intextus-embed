@@ -24,4 +24,5 @@ dependencies = [
 intextus-export = "intextus.export:main"
 
 [tool.setuptools]
+package-dir = {"" = "src"}
 packages = ["intextus"]
