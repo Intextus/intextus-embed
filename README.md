@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 
-**intextus** (Latin for *"woven into the text"*) is an ultra-lightweight, 100% PyTorch-free, and production-grade Python library designed to encode late-interaction ColBERT multi-vectors. 
+**intextus** is an ultra-lightweight, 100% PyTorch-free, and production-grade Python library designed to encode late-interaction ColBERT multi-vectors. 
 
 By replacing massive deep learning libraries with highly optimized, compiled C++/Rust backends, **intextus** delivers full ColBERT MaxSim embeddings in **under 65MB of RAM** with **zero PyTorch or Transformers dependencies**. It is optimized for edge devices, serverless functions (AWS Lambda, Cloudflare Workers), and resource-constrained environments.
 
