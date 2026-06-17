@@ -1,4 +1,4 @@
-# 🕸️ intextus
+# intextus
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
@@ -9,7 +9,7 @@ By replacing massive deep learning libraries with highly optimized, compiled C++
 
 ---
 
-## ⚡ Key Features
+## Key Features
 
 - **No PyTorch or Transformers:** Fully decoupled from the heavy standard library pipeline. A simple `pip install` completes in seconds.
 - **Micro Memory Footprint:** Executes multi-vector graphs inside ONNX Runtime, drawing less than 65MB of RAM during inference.
@@ -19,7 +19,7 @@ By replacing massive deep learning libraries with highly optimized, compiled C++
 
 ---
 
-## 📦 Installation
+## Installation
 
 Install the library directly via pip:
 
@@ -33,7 +33,7 @@ pip install intextus-embed
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 Here is how to load a model, extract multi-vector embeddings, and compute late-interaction cross-similarity scores entirely in NumPy:
 
@@ -57,7 +57,7 @@ print(f"Relevance Score (MaxSim): {score:.4f}")
 
 ---
 
-## 🎯 Supported & Tested Models
+## Supported & Tested Models
 
 `intextus` is designed for ultra-fast, edge-compatible ColBERT execution. The primary officially supported and fully validated models are:
 
@@ -70,9 +70,6 @@ print(f"Relevance Score (MaxSim): {score:.4f}")
 
 ---
 
-
----
-
-## ⚖️ License
+## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
