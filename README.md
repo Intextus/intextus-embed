@@ -3,63 +3,54 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 
-**intextus** is an ultra-lightweight, 100% PyTorch-free, and production-grade Python library designed to encode late-interaction ColBERT multi-vectors. 
+ColBERT embedding and MaxSim scoring without PyTorch. Uses a native C++ extension (ONNX Runtime + tokenizers-cpp) so you don't need to pull in 2 GB of deep learning dependencies just to encode some text.
 
-By replacing massive deep learning libraries with highly optimized, compiled C++/Rust backends, **intextus** delivers full ColBERT MaxSim embeddings in **under 65MB of RAM** with **zero PyTorch or Transformers dependencies**. It is optimized for edge devices, serverless functions (AWS Lambda, Cloudflare Workers), and resource-constrained environments.
-
----
-
-## Installation
-
-Install the library directly via pip:
+## Install
 
 ```bash
 pip install intextus-embed
 ```
 
-> [!NOTE]
-> `intextus` currently defaults to highly optimized CPU inference. Full hardware acceleration and GPU execution support are planned for a future release.
+Only runtime deps are `numpy` and `huggingface-hub`. The C++ bits (ONNX Runtime, tokenizer) are compiled into the wheel.
 
-
----
-
-## Quick Start
-
-Here is how to load a model, extract multi-vector embeddings, and compute late-interaction cross-similarity scores entirely in NumPy:
+## Usage
 
 ```python
 from intextus import IntextusEncoder, compute_maxsim
 
-# Initialize the encoder (defaults to intextus/mxbai-edge-colbert-v0-17m-onnx)
-model = IntextusEncoder()
+model = IntextusEncoder()  # downloads intextus/mxbai-edge-colbert-v0-17m-onnx
 
-# Or initialize from a local directory containing 'model.onnx' and 'tokenizer.json'
-# model = IntextusEncoder("./my_model_directory")
+q = model.encode_queries("What is late interaction?")
+d = model.encode_docs("ColBERT computes token-level similarity.")
 
-# Extract query and document embeddings (Batch_Size, Sequence_Length, Dimension)
-query_embeddings = model.encode_queries("What is ultra-low latency?")
-doc_embeddings = model.encode_docs("ONNX runtime bypasses the PyTorch layer completely.")
-
-# Compute the cross-similarity score via NumPy (using the first item in the batch)
-score = compute_maxsim(query_embeddings[0], doc_embeddings[0])
-print(f"Relevance Score (MaxSim): {score:.4f}")
+score = compute_maxsim(q[0], d[0])
+print(score)
 ```
 
----
+You can also point it at a local directory with `model.onnx` and `tokenizer.json`:
 
-## Supported & Tested Models
+```python
+model = IntextusEncoder("./my-model/")
+```
 
-`intextus` is designed for ultra-fast, edge-compatible ColBERT execution. The primary officially supported and fully validated models are:
+## Models
 
-- **`intextus/mxbai-edge-colbert-v0-17m-onnx`** (Alias: `mxbai-edge-colbert-v0-17m`) — A highly-optimized, single-file ONNX representation of ModernBERT-backed `mxbai-edge-colbert-v0-17m` (66 MB, 48-dimensional late-interaction embeddings). **(Default Model)**
-- **`intextus/mxbai-edge-colbert-v0-32m-onnx`** (Alias: `mxbai-edge-colbert-v0-32m`) — A larger, higher-capacity ONNX representation of ModernBERT-backed `mxbai-edge-colbert-v0-32m` (124 MB, 64-dimensional late-interaction embeddings).
-- **`intextus/lateon-onnx`** (Alias: `lateon`) — A high-capacity base ModernBERT-backed model (580 MB, 128-dimensional late-interaction embeddings). Note: LateOn is case-sensitive, so load it with `IntextusEncoder("lateon", do_lower_case=False)`.
+| Alias | Repo | Size | Dim | Notes |
+|---|---|---|---|---|
+| `mxbai-edge-colbert-v0-17m` | `intextus/mxbai-edge-colbert-v0-17m-onnx` | 66 MB | 48 | Default |
+| `mxbai-edge-colbert-v0-32m` | `intextus/mxbai-edge-colbert-v0-32m-onnx` | 124 MB | 64 | |
+| `lateon` | `intextus/lateon-onnx` | 580 MB | 128 | Case-sensitive: use `do_lower_case=False` |
 
-> [!NOTE]
-> Any ColBERT model exported via standard Hugging Face/PyLate workflows can be loaded locally by providing the path to its `model.onnx` and `tokenizer.json`.
+Any ColBERT ONNX model should work if you put `model.onnx` and `tokenizer.json` in a folder and pass the path.
 
----
+## How it works
+
+- Tokenization and inference run in C++ via a nanobind extension
+- GIL is released during encode and MaxSim calls, so you can run multiple threads
+- Punctuation tokens are masked out of document embeddings (standard ColBERT behavior)
+- Embeddings are L2-normalized by default
+- CPU only for now
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+MIT. See [LICENSE](LICENSE).

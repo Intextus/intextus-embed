@@ -21,20 +21,20 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest numpy tokenizers onnxruntime
+          pip install pytest numpy huggingface-hub
 
       - name: Run Tests
         run: |
           PYTHONPATH=src pytest tests/
 
-  publish:
-    name: Build and Publish
+  bump_version:
+    name: Increment and Commit Version
     needs: test
     runs-on: ubuntu-latest
     permissions:
-      id-token: write  # Required for OIDC Trusted Publisher authentication
-      contents: write  # Required to commit the bumped version back to repository
-
+      contents: write
+    outputs:
+      new_sha: ${{ steps.commit.outputs.sha }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -46,26 +46,108 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: Install build tools
-        run: |
-          python -m pip install --upgrade pip
-          pip install build
-
       - name: Increment Version
         run: |
           python scripts/increment_version.py
 
-      - name: Build Package
-        run: |
-          python -m build
-
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-
       - name: Commit version bump back to GitHub
+        id: commit
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add pyproject.toml
-          # git commit will exit successfully if there are no changes, or commit if changes are present
-          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: bump version [skip ci]" && git push)
+          if git diff --quiet && git diff --staged --quiet; then
+            echo "No version changes to commit."
+          else
+            git commit -m "chore: bump version [skip ci]"
+            git push
+          fi
+          echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+
+  build_wheels:
+    name: Build wheels on ${{ matrix.os }}
+    needs: bump_version
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.bump_version.outputs.new_sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install cibuildwheel
+        run: |
+          python -m pip install --upgrade pip
+          pip install cibuildwheel==2.22.0
+
+      - name: Build wheels
+        run: |
+          python -m cibuildwheel --output-dir wheelhouse
+        env:
+          CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-* cp313-* cp314-*"
+          CIBW_ARCHS_LINUX: "x86_64 aarch64"
+          CIBW_ARCHS_MACOS: "x86_64 arm64"
+          CIBW_ARCHS_WINDOWS: "AMD64"
+          CIBW_SKIP: "*-win32 *-manylinux_i686 *musllinux*"
+          CIBW_BEFORE_BUILD: "pip install nanobind scikit-build-core"
+          CIBW_TEST_REQUIRES: "pytest numpy huggingface-hub"
+          CIBW_TEST_COMMAND: "pytest {project}/tests"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cibuildwheel-wheels-${{ matrix.os }}-${{ strategy.job-index }}
+          path: ./wheelhouse/*.whl
+
+  build_sdist:
+    name: Build source distribution
+    needs: bump_version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.bump_version.outputs.new_sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Build sdist
+        run: |
+          pip install build
+          python -m build --sdist --outdir dist
+
+      - name: Upload sdist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cibuildwheel-sdist
+          path: dist/*.tar.gz
+
+  publish:
+    name: Publish to PyPI
+    needs: [build_wheels, build_sdist]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # Required for OIDC Trusted Publisher authentication
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: cibuildwheel-*
+          path: dist
+          merge-multiple: true
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist

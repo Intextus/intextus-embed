@@ -5,6 +5,7 @@ import numpy as np
 def compute_maxsim(query_embeddings: np.ndarray, doc_embeddings: np.ndarray) -> float:
     """
     Computes the late-interaction MaxSim score between query and document vectors.
+    Uses the accelerated C++ backend if available, with a numpy fallback.
     
     Args:
         query_embeddings: Array of shape (Query_Tokens, Dim) representing query vector sequence.
@@ -13,14 +14,18 @@ def compute_maxsim(query_embeddings: np.ndarray, doc_embeddings: np.ndarray) -> 
     Returns:
         The float score representing late-interaction relevance.
     """
-    # Compute the dot product matrix between every query token and every document token
-    # Resulting shape: (Query_Tokens, Doc_Tokens)
+    try:
+        from ._core import compute_maxsim as cpp_compute_maxsim
+        # Ensure contiguous float32 arrays for C++ backend
+        q = np.ascontiguousarray(query_embeddings, dtype=np.float32)
+        d = np.ascontiguousarray(doc_embeddings, dtype=np.float32)
+        return cpp_compute_maxsim(q, d)
+    except (ImportError, AttributeError, stdexcept) if 'stdexcept' in globals() else ImportError:
+        pass
+
+    # Fallback to pure numpy implementation
     scores = np.dot(query_embeddings, doc_embeddings.T)
-    
-    # Take the maximum score across the document tokens for each query token
     max_scores_per_query_token = np.max(scores, axis=1)
-    
-    # Sum the maximums together to get final relevance score
     return float(np.sum(max_scores_per_query_token))
 
 def get_punctuation_token_ids(

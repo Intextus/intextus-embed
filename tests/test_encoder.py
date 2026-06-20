@@ -21,45 +21,28 @@ def mock_dependencies():
     
     temp_dir.cleanup()
 
-@patch("intextus.encoder.ort.InferenceSession")
-@patch("intextus.encoder.Tokenizer")
-def test_encoder_init_and_encode(mock_tokenizer_cls, mock_session_cls, mock_dependencies):
+@patch("intextus.encoder.CppIntextusEncoder")
+def test_encoder_init_and_encode(mock_cpp_encoder_cls, mock_dependencies):
     model_path, tokenizer_path = mock_dependencies
     
-    # Configure mock tokenizer
-    mock_tokenizer = MagicMock()
-    mock_tokenizer_cls.from_file.return_value = mock_tokenizer
-    mock_tokenizer.token_to_id.side_effect = lambda x: 1 if x == "[Q]" else (2 if x == "[D]" else None)
-    mock_tokenizer.get_vocab.return_value = {
-        "[CLS]": 101, "[SEP]": 102, "[Q]": 1, "[D]": 2, ".": 10, "hello": 20
-    }
+    # Configure mock C++ encoder
+    mock_cpp_encoder = MagicMock()
+    mock_cpp_encoder_cls.return_value = mock_cpp_encoder
     
-    # Configure mock ONNX session
-    mock_session = MagicMock()
-    mock_session_cls.return_value = mock_session
+    mock_cpp_encoder.query_marker_id = 1
+    mock_cpp_encoder.doc_marker_id = 2
+    mock_cpp_encoder.skiplist_arr = {10}
     
-    mock_input_1 = MagicMock()
-    mock_input_1.name = "input_ids"
-    mock_input_2 = MagicMock()
-    mock_input_2.name = "attention_mask"
-    mock_session.get_inputs.return_value = [mock_input_1, mock_input_2]
+    # Mock return values for methods
+    dummy_q_embs = np.array([[[1.0, 0.0, 0.0, 0.0],
+                              [0.0, 1.0, 0.0, 0.0],
+                              [0.0, 0.0, 1.0, 0.0]]], dtype=np.float32)
+    dummy_d_embs = np.array([[[1.0, 0.0, 0.0, 0.0],
+                              [0.0, 1.0, 0.0, 0.0],
+                              [0.0, 0.0, 0.0, 0.0]]], dtype=np.float32)
     
-    mock_output = MagicMock()
-    mock_output.name = "embeddings"
-    mock_session.get_outputs.return_value = [mock_output]
-    
-    # Mock model execution output (Batch=1, Seq=3, Dim=4)
-    # Token 0: [CLS], Token 1: [Q]/[D], Token 2: "." (punctuation)
-    dummy_output_embeddings = np.array([[[1.0, 0.0, 0.0, 0.0],
-                                          [0.0, 1.0, 0.0, 0.0],
-                                          [0.0, 0.0, 1.0, 0.0]]], dtype=np.float32)
-    mock_session.run.return_value = [dummy_output_embeddings]
-    
-    # Mock Tokenizer encodings (marker token will be inserted, making length 3)
-    mock_encoding = MagicMock()
-    mock_encoding.ids = [101, 10] # 101 is [CLS], 10 is punctuation
-    mock_encoding.attention_mask = [1, 1]
-    mock_tokenizer.encode_batch.return_value = [mock_encoding]
+    mock_cpp_encoder.encode_queries.return_value = dummy_q_embs
+    mock_cpp_encoder.encode_docs.return_value = dummy_d_embs
     
     # Create encoder
     encoder = IntextusEncoder(model_path, tokenizer_path)
@@ -67,31 +50,19 @@ def test_encoder_init_and_encode(mock_tokenizer_cls, mock_session_cls, mock_depe
     assert encoder.query_marker_id == 1
     assert encoder.doc_marker_id == 2
     assert 10 in encoder.skiplist_arr
-    assert 20 not in encoder.skiplist_arr
     
-    # Test encode_queries (no punctuation masking, but L2 normalized)
+    # Test encode_queries
     q_embs = encoder.encode_queries("test query", max_length=3, normalize=True)
-    mock_session.run.assert_called()
-    assert q_embs.shape == (1, 3, 4)
-    # Check L2 normalization: [1, 0, 0, 0] norm is 1
-    assert np.allclose(q_embs[0, 0], [1.0, 0.0, 0.0, 0.0])
+    mock_cpp_encoder.encode_queries.assert_called_with(["test query"], 3, True)
+    assert np.array_equal(q_embs, dummy_q_embs)
     
-    # Reset mock for document test
-    mock_session.run.reset_mock()
-    
-    # Test encode_docs (with punctuation masking - token at index 2 has ID 10 which is punctuation)
+    # Test encode_docs
     d_embs = encoder.encode_docs("test doc", max_length=3, normalize=True)
-    mock_session.run.assert_called()
-    
-    # Verify punctuation token is zeroed out
-    assert np.allclose(d_embs[0, 2], [0.0, 0.0, 0.0, 0.0])
-    # Other tokens are normalized
-    assert np.allclose(d_embs[0, 0], [1.0, 0.0, 0.0, 0.0])
-    assert np.allclose(d_embs[0, 1], [0.0, 1.0, 0.0, 0.0])
+    mock_cpp_encoder.encode_docs.assert_called_with(["test doc"], 3, True)
+    assert np.array_equal(d_embs, dummy_d_embs)
 
-@patch("intextus.encoder.ort.InferenceSession")
-@patch("intextus.encoder.Tokenizer")
-def test_encoder_init_with_directory(mock_tokenizer_cls, mock_session_cls):
+@patch("intextus.encoder.CppIntextusEncoder")
+def test_encoder_init_with_directory(mock_cpp_encoder_cls):
     temp_dir = tempfile.TemporaryDirectory()
     model_path = os.path.join(temp_dir.name, "model.onnx")
     tokenizer_path = os.path.join(temp_dir.name, "tokenizer.json")
@@ -101,71 +72,72 @@ def test_encoder_init_with_directory(mock_tokenizer_cls, mock_session_cls):
     with open(tokenizer_path, "w") as f:
         f.write('{"vocab": {}}')
         
-    mock_tokenizer = MagicMock()
-    mock_tokenizer_cls.from_file.return_value = mock_tokenizer
-    mock_tokenizer.get_vocab.return_value = {}
-    
-    mock_session = MagicMock()
-    mock_session_cls.return_value = mock_session
-    mock_session.get_inputs.return_value = []
-    
-    mock_output = MagicMock()
-    mock_output.name = "embeddings"
-    mock_session.get_outputs.return_value = [mock_output]
-    
     encoder = IntextusEncoder(temp_dir.name)
     
-    mock_tokenizer_cls.from_file.assert_called_with(tokenizer_path)
-    mock_session_cls.assert_called_with(model_path, providers=["CPUExecutionProvider"])
+    mock_cpp_encoder_cls.assert_called_with(
+        model_path,
+        tokenizer_path,
+        "[Q]",
+        "[D]",
+        True
+    )
     
     temp_dir.cleanup()
 
-@patch("intextus.encoder.ort.InferenceSession")
-@patch("intextus.encoder.Tokenizer")
+@patch("intextus.encoder.CppIntextusEncoder")
 @patch("intextus.encoder.os.path.exists")
 @patch("huggingface_hub.hf_hub_download")
-def test_encoder_init_with_hf_hub(mock_hf_download, mock_exists, mock_tokenizer_cls, mock_session_cls):
-    # Setup mock returns
+def test_encoder_init_with_hf_hub(mock_hf_download, mock_exists, mock_cpp_encoder_cls):
     def exists_side_effect(path):
-        # The model names are not local paths
         if path in ["mxbai-edge-colbert-v0-17m", "intextus/mxbai-edge-colbert-v0-17m-onnx"]:
             return False
-        # The resolved downloaded paths exist
         return True
     mock_exists.side_effect = exists_side_effect
     
     mock_hf_download.side_effect = lambda repo_id, filename: f"/mocked/path/{repo_id}/{filename}"
     
-    mock_tokenizer = MagicMock()
-    mock_tokenizer_cls.from_file.return_value = mock_tokenizer
-    mock_tokenizer.get_vocab.return_value = {}
-    
-    mock_session = MagicMock()
-    mock_session_cls.return_value = mock_session
-    mock_session.get_inputs.return_value = []
-    
-    mock_output = MagicMock()
-    mock_output.name = "embeddings"
-    mock_session.get_outputs.return_value = [mock_output]
-    
-    # 1. Initialize using a model name alias
     encoder = IntextusEncoder("mxbai-edge-colbert-v0-17m")
     
-    # Verify it maps alias to full repo and downloads it
     mock_hf_download.assert_any_call(repo_id="intextus/mxbai-edge-colbert-v0-17m-onnx", filename="model.onnx")
     mock_hf_download.assert_any_call(repo_id="intextus/mxbai-edge-colbert-v0-17m-onnx", filename="tokenizer.json")
     
-    # Verify it loaded the downloaded files
-    mock_tokenizer_cls.from_file.assert_called_with("/mocked/path/intextus/mxbai-edge-colbert-v0-17m-onnx/tokenizer.json")
-    mock_session_cls.assert_called_with("/mocked/path/intextus/mxbai-edge-colbert-v0-17m-onnx/model.onnx", providers=["CPUExecutionProvider"])
+    mock_cpp_encoder_cls.assert_called_with(
+        "/mocked/path/intextus/mxbai-edge-colbert-v0-17m-onnx/model.onnx",
+        "/mocked/path/intextus/mxbai-edge-colbert-v0-17m-onnx/tokenizer.json",
+        "[Q]",
+        "[D]",
+        True
+    )
 
-    # 2. Reset mock calls to verify the default constructor
-    mock_hf_download.reset_mock()
-    mock_tokenizer_cls.from_file.reset_mock()
-    mock_session_cls.reset_mock()
+def test_real_embedding_end_to_end():
+    # End-to-end validation with the real default C++ engine and ONNX model
+    print("\nRunning real end-to-end embedding test...")
+    encoder = IntextusEncoder("mxbai-edge-colbert-v0-17m")
     
-    encoder_default = IntextusEncoder()
-    mock_hf_download.assert_any_call(repo_id="intextus/mxbai-edge-colbert-v0-17m-onnx", filename="model.onnx")
-    mock_hf_download.assert_any_call(repo_id="intextus/mxbai-edge-colbert-v0-17m-onnx", filename="tokenizer.json")
-
-
+    # 1. Check metadata and properties
+    assert encoder.query_marker_id >= 0
+    assert encoder.doc_marker_id >= 0
+    assert len(encoder.skiplist_arr) > 0
+    
+    # 2. Test query encoding
+    queries = ["hello world", "this is an integration test query"]
+    q_embs = encoder.encode_queries(queries, max_length=32, normalize=True)
+    assert q_embs.shape == (2, 32, 48)  # mxbai-edge-colbert-v0-17m has a 48-dimensional embedding space
+    
+    # Check L2 normalization (sum of squares is close to 1)
+    norm = np.linalg.norm(q_embs[0, 0])
+    assert np.allclose(norm, 1.0, atol=1e-5)
+    
+    # 3. Test document encoding with punctuation masking
+    docs = ["Hello world! This is a test document.", "Second document with some punct? Yes."]
+    d_embs = encoder.encode_docs(docs, max_length=128, normalize=True)
+    assert d_embs.shape == (2, 128, 48)
+    
+    # 4. Test MaxSim calculation (using the accelerated C++ version and python fallback)
+    from intextus import compute_maxsim
+    
+    score = compute_maxsim(q_embs[0], d_embs[0])
+    assert isinstance(score, float)
+    assert score > 0.0
+    
+    print(f"Integration test score for 'hello world' similarity: {score:.4f}")

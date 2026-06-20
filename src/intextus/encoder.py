@@ -1,9 +1,9 @@
 import os
-from typing import List, Union, Dict, Any
+from typing import List, Union
 import numpy as np
-import onnxruntime as ort
-from tokenizers import Tokenizer
-from intextus.utils import get_punctuation_token_ids
+
+# We import the C++ class under an alias to expose it via our Python wrapper
+from ._core import IntextusEncoder as CppIntextusEncoder
 
 class IntextusEncoder:
     def __init__(
@@ -16,14 +16,15 @@ class IntextusEncoder:
         provider: str = "CPUExecutionProvider"
     ):
         """
-        Pure ONNX engine for generic ColBERT execution.
+        Wrapper around the accelerated C++ ONNX engine for generic ColBERT execution.
         
         Args:
             model_name_or_path: Local path to a directory, an ONNX file, or a Hugging Face Hub model ID/alias.
             tokenizer_path: Optional path to tokenizer.json. If None, it is resolved automatically.
             query_marker: Special marker string used to denote query sequence.
             doc_marker: Special marker string used to denote document sequence.
-            provider: Execution provider for ONNX Runtime inference.
+            do_lower_case: Whether to lower case input texts.
+            provider: Execution provider (configured in C++ as CPUExecutionProvider).
         """
         # Resolve paths dynamically
         model_path = None
@@ -66,89 +67,31 @@ class IntextusEncoder:
         if tokenizer_path is None or not os.path.exists(tokenizer_path):
             raise FileNotFoundError(f"Tokenizer file not found at {tokenizer_path}")
             
-        # Initialize the ultra-fast Rust tokenizer
-        self.tokenizer = Tokenizer.from_file(tokenizer_path)
-        
-        # Initialize execution session
-        self.session = ort.InferenceSession(model_path, providers=[provider])
-        
-        self.do_lower_case = do_lower_case
-
-        # Dynamically discover graph inputs/outputs to remain generic
-        self.input_names = [i.name for i in self.session.get_inputs()]
-        self.output_name = self.session.get_outputs()[0].name
-        
-        # Fetch token IDs for ColBERT context injection (handling trailing space variants)
-        self.query_marker_id = self.tokenizer.token_to_id(query_marker)
-        if self.query_marker_id is None:
-            # Fallback for models (like PyLate/mxbai) where special tokens have trailing spaces
-            self.query_marker_id = self.tokenizer.token_to_id(query_marker + " ")
-            if self.query_marker_id is not None:
-                query_marker = query_marker + " "
-                
-        self.doc_marker_id = self.tokenizer.token_to_id(doc_marker)
-        if self.doc_marker_id is None:
-            self.doc_marker_id = self.tokenizer.token_to_id(doc_marker + " ")
-            if self.doc_marker_id is not None:
-                doc_marker = doc_marker + " "
-                
-        if self.query_marker_id is None or self.doc_marker_id is None:
-            print(f"[Warning] Custom markers '{query_marker.strip()}'/'{doc_marker.strip()}' not found in vocabulary. Defaulting to standard tokenization.")
-            
-        # Dynamically find all token IDs associated with string punctuation symbols
-        # to construct the punctuation masking skiplist.
-        skiplist_set = get_punctuation_token_ids(
-            vocab=self.tokenizer.get_vocab(),
-            query_marker=query_marker,
-            doc_marker=doc_marker
+        # Initialize C++ core encoder
+        self._encoder = CppIntextusEncoder(
+            model_path,
+            tokenizer_path,
+            query_marker,
+            doc_marker,
+            do_lower_case
         )
-        # Pre-compile the skiplist to a NumPy array for fast vector-optimized masking
-        self.skiplist_arr = np.array(list(skiplist_set), dtype=np.int64)
 
-    def _prepare_inputs(self, texts: List[str], marker_id: int, max_length: int) -> Dict[str, np.ndarray]:
-        # Lowercase texts if the model is case-insensitive
-        if self.do_lower_case:
-            texts = [t.lower() for t in texts]
-            
-        # Determine the target tokenization length prior to inserting the prefix token
-        token_len = max_length - 1 if marker_id is not None else max_length
-        
-        self.tokenizer.enable_padding(style="max_length", length=token_len)
-        self.tokenizer.enable_truncation(max_length=token_len)
-        
-        encodings = self.tokenizer.encode_batch(texts)
-        
-        input_ids = []
-        attention_masks = []
-        
-        for enc in encodings:
-            ids = list(enc.ids)
-            mask = list(enc.attention_mask)
-            
-            # Insert the ColBERT interaction marker [Q] or [D] right after [CLS] (index 1)
-            if marker_id is not None and len(ids) > 1:
-                ids.insert(1, marker_id)
-                ids = ids[:max_length]
-                mask.insert(1, 1)
-                mask = mask[:max_length]
-                
-            input_ids.append(ids)
-            attention_masks.append(mask)
-            
-        inputs = {
-            "input_ids": np.array(input_ids, dtype=np.int64),
-            "attention_mask": np.array(attention_masks, dtype=np.int64)
-        }
-        
-        # Handle models exported with an optional token_type_ids layer
-        if "token_type_ids" in self.input_names:
-            inputs["token_type_ids"] = np.zeros_like(inputs["input_ids"])
-            
-        return inputs
+    @property
+    def query_marker_id(self) -> int:
+        return self._encoder.query_marker_id
+
+    @property
+    def doc_marker_id(self) -> int:
+        return self._encoder.doc_marker_id
+
+    @property
+    def skiplist_arr(self) -> np.ndarray:
+        # The C++ core returns a set of ids. We convert it to a NumPy array for compatibility.
+        return np.array(list(self._encoder.skiplist_arr), dtype=np.int64)
 
     def encode_queries(self, queries: Union[str, List[str]], max_length: int = 32, normalize: bool = True) -> np.ndarray:
         """
-        Encodes query texts into multi-vector embeddings.
+        Encodes query texts into multi-vector embeddings using the accelerated C++ backend.
         
         Args:
             queries: A single query string or list of query strings.
@@ -157,23 +100,16 @@ class IntextusEncoder:
             
         Returns:
             A NumPy array of query embeddings with shape (Batch, Seq_Len, Dim).
+            If a single query was passed, the shape is still (1, Seq_Len, Dim).
         """
         if isinstance(queries, str):
             queries = [queries]
-        onnx_inputs = self._prepare_inputs(queries, self.query_marker_id, max_length)
-        embeddings = self.session.run([self.output_name], onnx_inputs)[0]
-        
-        if normalize:
-            norm = np.linalg.norm(embeddings, axis=-1, keepdims=True)
-            # Optimize in-place division using where filter to avoid zero-division allocation
-            np.divide(embeddings, norm, out=embeddings, where=norm != 0.0)
-            
-        return embeddings
+        return self._encoder.encode_queries(queries, max_length, normalize)
 
     def encode_docs(self, docs: Union[str, List[str]], max_length: int = 256, normalize: bool = True) -> np.ndarray:
         """
-        Encodes document texts into multi-vector embeddings, automatically zeroing out
-        embeddings corresponding to punctuation tokens to reduce index footprint and search noise.
+        Encodes document texts into multi-vector embeddings using the accelerated C++ backend.
+        Automatically zeroes out embeddings corresponding to punctuation tokens to reduce search noise.
         
         Args:
             docs: A single document string or list of document strings.
@@ -182,24 +118,8 @@ class IntextusEncoder:
             
         Returns:
             A NumPy array of document embeddings with shape (Batch, Seq_Len, Dim).
+            If a single document was passed, the shape is still (1, Seq_Len, Dim).
         """
         if isinstance(docs, str):
             docs = [docs]
-        onnx_inputs = self._prepare_inputs(docs, self.doc_marker_id, max_length)
-        embeddings = self.session.run([self.output_name], onnx_inputs)[0]
-        
-        # Zero out embeddings for punctuation tokens in the document
-        input_ids = onnx_inputs["input_ids"]
-        # Optimized set membership check using pre-compiled NumPy array
-        mask = np.isin(input_ids, self.skiplist_arr)
-        
-        # Apply the mask via element-wise multiplication (1.0 for words, 0.0 for punctuation)
-        # This executes in-place using continuous memory strides, bypassing index copy overhead
-        keep_mask = (~mask)[:, :, np.newaxis]
-        embeddings *= keep_mask
-        
-        if normalize:
-            norm = np.linalg.norm(embeddings, axis=-1, keepdims=True)
-            np.divide(embeddings, norm, out=embeddings, where=norm != 0.0)
-            
-        return embeddings
+        return self._encoder.encode_docs(docs, max_length, normalize)

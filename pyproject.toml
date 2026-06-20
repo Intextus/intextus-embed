@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+requires = ["scikit-build-core>=0.5.0", "nanobind>=2.0.0"]
+build-backend = "scikit_build_core.build"
 
 [project]
 name = "intextus-embed"
@@ -27,14 +27,12 @@ keywords = [
     "modernbert"
 ]
 dependencies = [
-    "onnxruntime>=1.16.0",
-    "tokenizers>=0.19.0",
-    "numpy>=1.22.0"
+    "numpy>=1.22.0",
+    "huggingface-hub>=0.16.4"
 ]
 
-[project.scripts]
-intextus-export = "intextus.export:main"
-
-[tool.setuptools]
-package-dir = {"" = "src"}
-packages = ["intextus"]
+[tool.scikit-build]
+cmake.build-type = "Release"
+# This tells scikit-build-core to look inside the 'src' directory for your python packages
+wheel.packages = ["src/intextus"]
+sdist.include = ["src/intextus/*", "CMakeLists.txt"]
