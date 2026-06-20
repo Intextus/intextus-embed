@@ -7,6 +7,13 @@
 #include <onnxruntime_cxx_api.h>
 #include <tokenizers_cpp.h>
 
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#endif
+
 #include <vector>
 #include <string>
 #include <fstream>
@@ -54,7 +61,17 @@ public:
         // 2. Initialize ONNX runtime session
         Ort::SessionOptions session_options;
         session_options.SetIntraOpNumThreads(1);
+#ifdef _WIN32
+        int size_needed = MultiByteToWideChar(CP_UTF8, 0, model_path.c_str(), -1, NULL, 0);
+        std::wstring model_path_w(size_needed, 0);
+        MultiByteToWideChar(CP_UTF8, 0, model_path.c_str(), -1, &model_path_w[0], size_needed);
+        if (size_needed > 0) {
+            model_path_w.resize(size_needed - 1);
+        }
+        session_ = std::make_unique<Ort::Session>(env_, model_path_w.c_str(), session_options);
+#else
         session_ = std::make_unique<Ort::Session>(env_, model_path.c_str(), session_options);
+#endif
 
         // Discover input/output names and cache their C-string pointers
         Ort::AllocatorWithDefaultOptions allocator;
