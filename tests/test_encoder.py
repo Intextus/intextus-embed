@@ -3,7 +3,7 @@ import tempfile
 import numpy as np
 from unittest.mock import MagicMock, patch
 import pytest
-from intextus import IntextusEncoder
+from intextus import LateInteractionEncoder
 
 @pytest.fixture
 def mock_dependencies():
@@ -45,7 +45,7 @@ def test_encoder_init_and_encode(mock_cpp_encoder_cls, mock_dependencies):
     mock_cpp_encoder.encode_docs.return_value = dummy_d_embs
     
     # Create encoder
-    encoder = IntextusEncoder(model_path, tokenizer_path)
+    encoder = LateInteractionEncoder(model_path, tokenizer_path)
     
     assert encoder.query_marker_id == 1
     assert encoder.doc_marker_id == 2
@@ -72,7 +72,7 @@ def test_encoder_init_with_directory(mock_cpp_encoder_cls):
     with open(tokenizer_path, "w") as f:
         f.write('{"vocab": {}}')
         
-    encoder = IntextusEncoder(temp_dir.name)
+    encoder = LateInteractionEncoder(temp_dir.name)
     
     mock_cpp_encoder_cls.assert_called_with(
         model_path,
@@ -96,7 +96,7 @@ def test_encoder_init_with_hf_hub(mock_hf_download, mock_exists, mock_cpp_encode
     
     mock_hf_download.side_effect = lambda repo_id, filename: f"/mocked/path/{repo_id}/{filename}"
     
-    encoder = IntextusEncoder("mxbai-edge-colbert-v0-17m")
+    encoder = LateInteractionEncoder("mxbai-edge-colbert-v0-17m")
     
     mock_hf_download.assert_any_call(repo_id="intextus/mxbai-edge-colbert-v0-17m-onnx", filename="model.onnx")
     mock_hf_download.assert_any_call(repo_id="intextus/mxbai-edge-colbert-v0-17m-onnx", filename="tokenizer.json")
@@ -112,7 +112,7 @@ def test_encoder_init_with_hf_hub(mock_hf_download, mock_exists, mock_cpp_encode
 def test_real_embedding_end_to_end():
     # End-to-end validation with the real default C++ engine and ONNX model
     print("\nRunning real end-to-end embedding test...")
-    encoder = IntextusEncoder("mxbai-edge-colbert-v0-17m")
+    encoder = LateInteractionEncoder("mxbai-edge-colbert-v0-17m")
     
     # 1. Check metadata and properties
     assert encoder.query_marker_id >= 0

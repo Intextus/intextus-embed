@@ -5,7 +5,7 @@ import numpy as np
 # We import the C++ class under an alias to expose it via our Python wrapper
 from ._core import IntextusEncoder as CppIntextusEncoder
 
-class IntextusEncoder:
+class LateInteractionEncoder:
     def __init__(
         self, 
         model_name_or_path: str = "intextus/mxbai-edge-colbert-v0-17m-onnx", 

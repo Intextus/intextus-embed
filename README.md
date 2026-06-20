@@ -16,9 +16,9 @@ Only runtime deps are `numpy` and `huggingface-hub`. The C++ bits (ONNX Runtime,
 ## Usage
 
 ```python
-from intextus import IntextusEncoder, compute_maxsim
+from intextus import LateInteractionEncoder, compute_maxsim
 
-model = IntextusEncoder()  # downloads intextus/mxbai-edge-colbert-v0-17m-onnx
+model = LateInteractionEncoder()  # downloads intextus/mxbai-edge-colbert-v0-17m-onnx
 
 q = model.encode_queries("What is late interaction?")
 d = model.encode_docs("ColBERT computes token-level similarity.")
@@ -30,7 +30,7 @@ print(score)
 You can also point it at a local directory with `model.onnx` and `tokenizer.json`:
 
 ```python
-model = IntextusEncoder("./my-model/")
+model = LateInteractionEncoder("./my-model/")
 ```
 
 ## Models

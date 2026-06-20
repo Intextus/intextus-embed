@@ -1,4 +1,4 @@
-from .encoder import IntextusEncoder
+from .encoder import LateInteractionEncoder
 from .utils import compute_maxsim
 
-__all__ = ["IntextusEncoder", "compute_maxsim"]
+__all__ = ["LateInteractionEncoder", "compute_maxsim"]
