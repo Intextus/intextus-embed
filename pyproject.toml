@@ -7,7 +7,7 @@ name = "intextus-embed"
 version = "0.1.4"
 description = "A lightweight, zero-PyTorch ONNX encoder for generic ColBERT models."
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 license = { text = "MIT" }
 classifiers = [
     "Programming Language :: Python :: 3",
