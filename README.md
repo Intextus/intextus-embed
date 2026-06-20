@@ -13,15 +13,6 @@ pip install intextus-embed
 
 Only runtime deps are `numpy` and `huggingface-hub`. The C++ bits (ONNX Runtime, tokenizer) are compiled into the wheel.
 
-> [!NOTE]
-> **Docker & Alpine Linux Compatibility**: Because the underlying precompiled ONNX Runtime library is linked against `glibc`, this package will not run out-of-the-box on Alpine Linux images (e.g., `python:3.10-alpine`).
->
-> If deploying via Docker, it is highly recommended to use a Debian-based slim image:
-> ```dockerfile
-> FROM python:3.10-slim
-> ```
-> If you must use Alpine, you will need to install the compatibility layer: `apk add --no-cache gcompat`.
-
 ## Usage
 
 ```python
@@ -59,6 +50,18 @@ Any ColBERT ONNX model should work if you put `model.onnx` and `tokenizer.json` 
 - Punctuation tokens are masked out of document embeddings (standard ColBERT behavior)
 - Embeddings are L2-normalized by default
 - CPU only for now
+
+## Docker & Alpine Linux Compatibility
+
+Because the underlying precompiled ONNX Runtime library is linked against `glibc`, this package will not run out-of-the-box on Alpine Linux images (e.g., `python:3.10-alpine`).
+
+If deploying via Docker, it is highly recommended to use a Debian-based slim image:
+
+```dockerfile
+FROM python:3.10-slim
+```
+
+If you must use Alpine, you will need to install the compatibility layer: `apk add --no-cache gcompat`.
 
 ## License
 
