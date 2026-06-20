@@ -18,14 +18,15 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: Install dependencies
+      - name: Install dependencies and build extension
         run: |
           python -m pip install --upgrade pip
-          pip install pytest numpy huggingface-hub
+          pip install pytest numpy huggingface-hub nanobind scikit-build-core
+          pip install -e .
 
       - name: Run Tests
         run: |
-          PYTHONPATH=src pytest tests/
+          pytest tests/
 
   bump_version:
     name: Increment and Commit Version
