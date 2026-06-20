@@ -107,7 +107,7 @@ jobs:
           CIBW_SKIP: "*-win32 *-manylinux_i686 *musllinux*"
           CIBW_BEFORE_BUILD: "pip install nanobind scikit-build-core"
           CIBW_BEFORE_ALL_LINUX: "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y"
-          CIBW_ENVIRONMENT_LINUX: PATH="$PATH:/root/.cargo/bin"
+          CIBW_ENVIRONMENT_LINUX: PATH="$PATH:/root/.cargo/bin" CC=gcc CXX=g++ CC_aarch64_unknown_linux_gnu=gcc CC_aarch64-unknown-linux-gnu=gcc CXX_aarch64_unknown_linux_gnu=g++ CXX_aarch64_unknown_linux_gnu=g++ AR_aarch64_unknown_linux_gnu=ar AR_aarch64-unknown-linux-gnu=ar
           CIBW_MANYLINUX_X86_64_IMAGE: "manylinux_2_28"
           CIBW_MANYLINUX_AARCH64_IMAGE: "manylinux_2_28"
           CIBW_TEST_REQUIRES: "pytest numpy huggingface-hub"
