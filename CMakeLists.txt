@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.19...3.30)
 project(intextus_backend LANGUAGES CXX)
 
+if(POLICY CMP0169)
+    cmake_policy(SET CMP0169 OLD)
+endif()
+
 # FORCE PIC FOR ALL DEPENDENCIES (Fixes the R_X86_64_PC32 linker error)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
@@ -16,7 +20,33 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/mlc-ai/tokenizers-cpp.git
     GIT_TAG        main
 )
-FetchContent_MakeAvailable(tokenizers-cpp)
+
+FetchContent_GetProperties(tokenizers-cpp)
+if(NOT tokenizers-cpp_POPULATED)
+    FetchContent_Populate(tokenizers-cpp)
+    
+    # Patch tokenizers-cpp/CMakeLists.txt to not hardcode aarch64-unknown-linux-gnu cross-compilers
+    # since we are compiling inside native aarch64 docker containers under QEMU emulation.
+    set(TC_CMAKE_FILE "${tokenizers-cpp_SOURCE_DIR}/CMakeLists.txt")
+    if(EXISTS "${TC_CMAKE_FILE}")
+        file(READ "${TC_CMAKE_FILE}" TC_CMAKE_CONTENT)
+        string(REPLACE
+            "AR_\${TOKENIZERS_CPP_CARGO_TARGET}=\${TOOLCHAIN_DIR}\${TOKENIZERS_CPP_CARGO_TARGET}-ar"
+            "AR_\${TOKENIZERS_CPP_CARGO_TARGET}=ar"
+            TC_CMAKE_CONTENT "${TC_CMAKE_CONTENT}")
+        string(REPLACE
+            "CC_\${TOKENIZERS_CPP_CARGO_TARGET}=\${TOOLCHAIN_DIR}\${TOKENIZERS_CPP_CARGO_TARGET}-gcc"
+            "CC_\${TOKENIZERS_CPP_CARGO_TARGET}=gcc"
+            TC_CMAKE_CONTENT "${TC_CMAKE_CONTENT}")
+        string(REPLACE
+            "CXX_\${TOKENIZERS_CPP_CARGO_TARGET}=\${TOOLCHAIN_DIR}\${TOKENIZERS_CPP_CARGO_TARGET}-g++"
+            "CXX_\${TOKENIZERS_CPP_CARGO_TARGET}=g++"
+            TC_CMAKE_CONTENT "${TC_CMAKE_CONTENT}")
+        file(WRITE "${TC_CMAKE_FILE}" "${TC_CMAKE_CONTENT}")
+    endif()
+
+    add_subdirectory(${tokenizers-cpp_SOURCE_DIR} ${tokenizers-cpp_BINARY_DIR})
+endif()
 
 # 2. Fetch ONNX Runtime precompiled binaries and headers
 if(APPLE)
