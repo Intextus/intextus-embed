@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "intextus-embed"
-version = "0.1.4"
+version = "0.1.5"
 description = "A lightweight, zero-PyTorch ONNX encoder for generic ColBERT models."
 readme = "README.md"
 requires-python = ">=3.9"
