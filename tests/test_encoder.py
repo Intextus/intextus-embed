@@ -183,3 +183,16 @@ def test_real_embedding_end_to_end():
     assert score > 0.0
     
     print(f"Integration test score for 'hello world' similarity: {score:.4f}")
+
+
+def test_real_embedding_no_tokenizers_package():
+    # Verify that the encoder successfully falls back to loading punctuation
+    # even when the python tokenizers package is not available.
+    import sys
+    with patch.dict(sys.modules, {"tokenizers": None}):
+        encoder = LateInteractionEncoder("mxbai-edge-colbert-v0-17m")
+        assert len(encoder.skiplist_arr) > 0
+        
+        # Test basic encoding works
+        q_embs = encoder.encode_queries(["hello"], max_length=16)
+        assert q_embs.shape[0] == 1

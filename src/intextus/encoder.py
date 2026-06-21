@@ -165,12 +165,18 @@ class LateInteractionEncoder:
         skip_list = []
         try:
             import string
-            from tokenizers import Tokenizer
-            tok = Tokenizer.from_file(tokenizer_path)
-            for symbol in string.punctuation:
-                ids = tok.encode(symbol, add_special_tokens=False).ids
-                if ids:
-                    skip_list.append(ids[0])
+            vocab_tokens = locals().get("vocab_tokens")
+            if vocab_tokens:
+                for symbol in string.punctuation:
+                    if symbol in vocab_tokens:
+                        skip_list.append(vocab_tokens[symbol])
+            else:
+                from tokenizers import Tokenizer
+                tok = Tokenizer.from_file(tokenizer_path)
+                for symbol in string.punctuation:
+                    ids = tok.encode(symbol, add_special_tokens=False).ids
+                    if ids:
+                        skip_list.append(ids[0])
         except Exception:
             pass
 

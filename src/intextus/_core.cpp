@@ -117,8 +117,24 @@ public:
             if (id > max_token_id) max_token_id = id;
             skiplist_ids_.insert(id);
         }
+
+        // If skip_list is empty, dynamically detect punctuation tokens using the C++ tokenizer
+        if (skip_list.empty()) {
+            std::string punctuation = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
+            for (char c : punctuation) {
+                std::string symbol(1, c);
+                std::vector<int> ids = tokenizer_->Encode(symbol);
+                for (int id : ids) {
+                    if (id != cls_token_id && id != sep_token_id && id != pad_token_id && id != mask_token_id) {
+                        if (id > max_token_id) max_token_id = id;
+                        skiplist_ids_.insert(id);
+                    }
+                }
+            }
+        }
+
         is_punct_.assign(max_token_id + 1, false);
-        for (int id : skip_list) {
+        for (int id : skiplist_ids_) {
             is_punct_[id] = true;
         }
     }
