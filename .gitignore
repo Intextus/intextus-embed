@@ -156,3 +156,9 @@ mxbai-32m/
 # Converted/Verification temporary developer scripts
 convert_*.py
 verify_*.py
+
+# Local development cache and scripts
+models/
+scripts/export_onnx.py
+scripts/publish_models.py
+scripts/benchmark.py

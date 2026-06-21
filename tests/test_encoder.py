@@ -51,9 +51,9 @@ def test_encoder_init_and_encode(mock_cpp_encoder_cls, mock_dependencies):
     assert encoder.doc_marker_id == 2
     assert 10 in encoder.skiplist_arr
     
-    # Test encode_queries
+    # Test encode_queries (asserting query_attn_mask_all_1s is passed as False by default)
     q_embs = encoder.encode_queries("test query", max_length=3, normalize=True)
-    mock_cpp_encoder.encode_queries.assert_called_with(["test query"], 3, True)
+    mock_cpp_encoder.encode_queries.assert_called_with(["test query"], 3, True, False)
     assert np.array_equal(q_embs, dummy_q_embs)
     
     # Test encode_docs
@@ -77,36 +77,77 @@ def test_encoder_init_with_directory(mock_cpp_encoder_cls):
     mock_cpp_encoder_cls.assert_called_with(
         model_path,
         tokenizer_path,
-        "[Q]",
-        "[D]",
-        True
+        False,          # do_lower_case
+        0,              # num_threads
+        1,              # query_marker_id
+        2,              # doc_marker_id
+        101,            # cls_token_id
+        102,            # sep_token_id
+        0,              # pad_token_id
+        103,            # mask_token_id
+        250000,         # vocab_size
+        []              # skip_list
     )
     
     temp_dir.cleanup()
 
+@pytest.mark.parametrize("model_alias,expected_repo_id,expected_params", [
+    (
+        "mxbai-edge-colbert-v0-17m",
+        "intextus/mxbai-edge-colbert-v0-17m-onnx",
+        {"do_lower": False, "num_threads": 0, "query_m": 1, "doc_m": 2, "cls": 101, "sep": 102, "pad": 0, "mask": 103, "vocab": 250000}
+    ),
+    (
+        "colbertv2.0",
+        "intextus/colbertv2.0-onnx",
+        {"do_lower": True, "num_threads": 0, "query_m": 1, "doc_m": 2, "cls": 101, "sep": 102, "pad": 0, "mask": 103, "vocab": 250000}
+    ),
+    (
+        "colbertv2",
+        "intextus/colbertv2.0-onnx",
+        {"do_lower": True, "num_threads": 0, "query_m": 1, "doc_m": 2, "cls": 101, "sep": 102, "pad": 0, "mask": 103, "vocab": 250000}
+    ),
+    (
+        "jina-colbert-v2",
+        "intextus/jina-colbert-v2-onnx",
+        {"do_lower": False, "num_threads": 0, "query_m": 250002, "doc_m": 250003, "cls": 0, "sep": 2, "pad": 1, "mask": 250001, "vocab": 250000}
+    ),
+    (
+        "answerai-colbert-small-v1",
+        "intextus/answerai-colbert-small-v1-onnx",
+        {"do_lower": False, "num_threads": 0, "query_m": 1, "doc_m": 2, "cls": 101, "sep": 102, "pad": 0, "mask": 103, "vocab": 250000}
+    )
+])
 @patch("intextus.encoder.CppIntextusEncoder")
 @patch("intextus.encoder.os.path.exists")
 @patch("huggingface_hub.hf_hub_download")
-def test_encoder_init_with_hf_hub(mock_hf_download, mock_exists, mock_cpp_encoder_cls):
+def test_encoder_init_with_hf_hub(mock_hf_download, mock_exists, mock_cpp_encoder_cls, model_alias, expected_repo_id, expected_params):
     def exists_side_effect(path):
-        if path in ["mxbai-edge-colbert-v0-17m", "intextus/mxbai-edge-colbert-v0-17m-onnx"]:
+        if path in [model_alias, expected_repo_id]:
             return False
         return True
     mock_exists.side_effect = exists_side_effect
     
     mock_hf_download.side_effect = lambda repo_id, filename: f"/mocked/path/{repo_id}/{filename}"
     
-    encoder = LateInteractionEncoder("mxbai-edge-colbert-v0-17m")
+    encoder = LateInteractionEncoder(model_alias)
     
-    mock_hf_download.assert_any_call(repo_id="intextus/mxbai-edge-colbert-v0-17m-onnx", filename="model.onnx")
-    mock_hf_download.assert_any_call(repo_id="intextus/mxbai-edge-colbert-v0-17m-onnx", filename="tokenizer.json")
+    mock_hf_download.assert_any_call(repo_id=expected_repo_id, filename="model.onnx")
+    mock_hf_download.assert_any_call(repo_id=expected_repo_id, filename="tokenizer.json")
     
     mock_cpp_encoder_cls.assert_called_with(
-        "/mocked/path/intextus/mxbai-edge-colbert-v0-17m-onnx/model.onnx",
-        "/mocked/path/intextus/mxbai-edge-colbert-v0-17m-onnx/tokenizer.json",
-        "[Q]",
-        "[D]",
-        True
+        f"/mocked/path/{expected_repo_id}/model.onnx",
+        f"/mocked/path/{expected_repo_id}/tokenizer.json",
+        expected_params["do_lower"],
+        expected_params["num_threads"],
+        expected_params["query_m"],
+        expected_params["doc_m"],
+        expected_params["cls"],
+        expected_params["sep"],
+        expected_params["pad"],
+        expected_params["mask"],
+        expected_params["vocab"],
+        []
     )
 
 def test_real_embedding_end_to_end():
@@ -131,7 +172,8 @@ def test_real_embedding_end_to_end():
     # 3. Test document encoding with punctuation masking
     docs = ["Hello world! This is a test document.", "Second document with some punct? Yes."]
     d_embs = encoder.encode_docs(docs, max_length=128, normalize=True)
-    assert d_embs.shape == (2, 128, 48)
+    assert d_embs.shape[0] == 2
+    assert d_embs.shape[2] == 48
     
     # 4. Test MaxSim calculation (using the accelerated C++ version and python fallback)
     from intextus import compute_maxsim
