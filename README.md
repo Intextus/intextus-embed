@@ -1,7 +1,12 @@
 # intextus
 
+[![PyPI Version](https://img.shields.io/pypi/v/intextus-embed.svg)](https://pypi.org/project/intextus-embed/)
+[![CI/CD Status](https://github.com/intextus/intextus-embed/actions/workflows/publish.yml/badge.svg)](https://github.com/intextus/intextus-embed/actions/workflows/publish.yml)
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/intextus-embed)](https://pypi.org/project/intextus-embed/)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://pypi.org/project/intextus-embed/)
+[![Platforms](https://img.shields.io/badge/platforms-Linux%20%7C%20macOS%20%7C%20Windows-blue.svg)](https://pypi.org/project/intextus-embed/)
+[![Architectures](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64%20%7C%20aarch64-lightgrey.svg)](https://pypi.org/project/intextus-embed/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 
 ColBERT embedding and MaxSim scoring without PyTorch. Uses a native C++ extension (ONNX Runtime + tokenizers-cpp) so you don't need to pull in 2 GB of deep learning dependencies just to encode some text.
 
@@ -11,7 +16,7 @@ ColBERT embedding and MaxSim scoring without PyTorch. Uses a native C++ extensio
 pip install intextus-embed
 ```
 
-Only runtime deps are `numpy` and `huggingface-hub`. The C++ bits (ONNX Runtime, tokenizer) are compiled into the wheel.
+Only runtime deps are `numpy` and `huggingface-hub`.
 
 ## Usage
 
@@ -62,6 +67,19 @@ FROM python:3.10-slim
 ```
 
 If you must use Alpine, you will need to install the compatibility layer: `apk add --no-cache gcompat`.
+
+## Supported Platforms & Architectures
+
+Precompiled wheels are published to PyPI for the following environments:
+
+| Operating System | Architecture | Python Versions | Notes |
+| --- | --- | --- | --- |
+| **Linux** | `x86_64`, `aarch64` | 3.9, 3.10, 3.11, 3.12, 3.13, 3.14 | Built on `manylinux_2_28` (glibc-based) |
+| **macOS** | `arm64` (Apple Silicon) | 3.9, 3.10, 3.11, 3.12, 3.13, 3.14 | SDK/deployment target macOS 13.3+ |
+| **Windows** | `AMD64` (x86_64) | 3.9, 3.10, 3.11, 3.12, 3.13, 3.14 | |
+
+> [!NOTE]
+> Other platforms (such as Intel-based macOS or ARM-based Windows) will fall back to compilation from the source distribution (`sdist`). This requires a local C++ compiler (supporting C++17) and CMake.
 
 ## License
 
