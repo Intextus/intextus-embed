@@ -1,7 +1,7 @@
 # limbed
 
 [![PyPI Version](https://img.shields.io/pypi/v/limbed-py.svg)](https://pypi.org/project/limbed-py/)
-[![CI/CD Status](https://github.com/intextus/intextus-embed/actions/workflows/publish.yml/badge.svg)](https://github.com/intextus/intextus-embed/actions/workflows/publish.yml)
+[![CI/CD Status](https://github.com/thlurte/limbed/actions/workflows/publish.yml/badge.svg)](https://github.com/thlurte/limbed/actions/workflows/publish.yml)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/limbed-py)](https://pypi.org/project/limbed-py/)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://pypi.org/project/limbed-py/)
 [![Platforms](https://img.shields.io/badge/platforms-Linux%20%7C%20macOS%20%7C%20Windows-blue.svg)](https://pypi.org/project/limbed-py/)
