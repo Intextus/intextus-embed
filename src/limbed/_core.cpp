@@ -43,13 +43,13 @@ static std::string LoadBytesFromFile(const std::string& path) {
     return buf;
 }
 
-class IntextusEncoder {
+class LateEmbedder {
 public:
     int query_marker_id_ = -1;
     int doc_marker_id_ = -1;
     std::unordered_set<int> skiplist_ids_;
 
-    IntextusEncoder(
+    LateEmbedder(
         const std::string& model_path,
         const std::string& tokenizer_path,
         bool do_lower_case,
@@ -378,7 +378,7 @@ private:
     }
 
     // --- members ---
-    Ort::Env env_{ORT_LOGGING_LEVEL_WARNING, "intextus"};
+    Ort::Env env_{ORT_LOGGING_LEVEL_WARNING, "limbed"};
     std::unique_ptr<Ort::Session> session_;
     std::unique_ptr<tokenizers::Tokenizer> tokenizer_;
 
@@ -438,12 +438,12 @@ float compute_maxsim(
 // ---- Module bindings ----
 
 NB_MODULE(_core, m) {
-    m.doc() = "intextus native C++ core";
+    m.doc() = "limbed native C++ core";
 
     m.def("compute_maxsim", &compute_maxsim,
         "MaxSim late-interaction score", nb::arg("query"), nb::arg("doc"));
 
-    nb::class_<IntextusEncoder>(m, "IntextusEncoder")
+    nb::class_<LateEmbedder>(m, "LateEmbedder")
         .def(nb::init<const std::string&, const std::string&, bool, int, int, int, int, int, int, int, int, const std::vector<int>&>(),
             nb::arg("model_path"), nb::arg("tokenizer_path"),
             nb::arg("do_lower_case"), nb::arg("num_threads"),
@@ -451,11 +451,11 @@ NB_MODULE(_core, m) {
             nb::arg("cls_token_id"), nb::arg("sep_token_id"),
             nb::arg("pad_token_id"), nb::arg("mask_token_id"),
             nb::arg("vocab_size"), nb::arg("skip_list"))
-        .def("encode_queries", &IntextusEncoder::encode_queries,
+        .def("encode_queries", &LateEmbedder::encode_queries,
             nb::arg("queries"), nb::arg("max_length"), nb::arg("normalize"), nb::arg("query_attn_mask_all_1s") = false)
-        .def("encode_docs", &IntextusEncoder::encode_docs,
+        .def("encode_docs", &LateEmbedder::encode_docs,
             nb::arg("docs"), nb::arg("max_length"), nb::arg("normalize"))
-        .def_prop_ro("query_marker_id", [](const IntextusEncoder& e) { return e.query_marker_id_; })
-        .def_prop_ro("doc_marker_id", [](const IntextusEncoder& e) { return e.doc_marker_id_; })
-        .def_prop_ro("skiplist_arr", [](const IntextusEncoder& e) { return e.skiplist_ids_; });
+        .def_prop_ro("query_marker_id", [](const LateEmbedder& e) { return e.query_marker_id_; })
+        .def_prop_ro("doc_marker_id", [](const LateEmbedder& e) { return e.doc_marker_id_; })
+        .def_prop_ro("skiplist_arr", [](const LateEmbedder& e) { return e.skiplist_ids_; });
 }

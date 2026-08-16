@@ -1,5 +1,5 @@
 import numpy as np
-from intextus.utils import compute_maxsim, get_punctuation_token_ids
+from limbed.utils import compute_maxsim, get_punctuation_token_ids
 
 def test_compute_maxsim():
     # 2 query tokens, dim 3

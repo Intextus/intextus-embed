@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.19...3.30)
-project(intextus_backend LANGUAGES CXX)
+project(limbed_backend LANGUAGES CXX)
 
 if(POLICY CMP0169)
     cmake_policy(SET CMP0169 OLD)
@@ -98,7 +98,7 @@ find_package(nanobind REQUIRED)
 # 4. Define our C++ extension module
 nanobind_add_module(
     _core                         # The name of the module
-    src/intextus/_core.cpp        # Where the C++ source code is
+    src/limbed/_core.cpp          # Where the C++ source code is
 )
 
 # 5. Add include paths and link libraries
@@ -119,15 +119,15 @@ elseif(UNIX)
 endif()
 
 # 6. Tell the build system to drop the finished binary and dependencies inside your python package folder
-install(TARGETS _core DESTINATION intextus)
+install(TARGETS _core DESTINATION limbed)
 
 if(WIN32)
     file(GLOB ORT_LIBS "${onnxruntime_binaries_SOURCE_DIR}/lib/onnxruntime.dll")
-    install(FILES ${ORT_LIBS} DESTINATION intextus)
+    install(FILES ${ORT_LIBS} DESTINATION limbed)
 elseif(APPLE)
     file(GLOB ORT_LIBS "${onnxruntime_binaries_SOURCE_DIR}/lib/libonnxruntime*.dylib")
-    install(FILES ${ORT_LIBS} DESTINATION intextus)
+    install(FILES ${ORT_LIBS} DESTINATION limbed)
 else()
     file(GLOB ORT_LIBS "${onnxruntime_binaries_SOURCE_DIR}/lib/libonnxruntime.so*")
-    install(FILES ${ORT_LIBS} DESTINATION intextus)
+    install(FILES ${ORT_LIBS} DESTINATION limbed)
 endif()

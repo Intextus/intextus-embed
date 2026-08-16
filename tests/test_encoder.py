@@ -3,7 +3,7 @@ import tempfile
 import numpy as np
 from unittest.mock import MagicMock, patch
 import pytest
-from intextus import LateInteractionEncoder
+from limbed import LateEmbedder, LateInteractionEncoder
 
 @pytest.fixture
 def mock_dependencies():
@@ -21,7 +21,7 @@ def mock_dependencies():
     
     temp_dir.cleanup()
 
-@patch("intextus.encoder.CppIntextusEncoder")
+@patch("limbed.encoder.CppLateEmbedder")
 def test_encoder_init_and_encode(mock_cpp_encoder_cls, mock_dependencies):
     model_path, tokenizer_path = mock_dependencies
     
@@ -45,7 +45,7 @@ def test_encoder_init_and_encode(mock_cpp_encoder_cls, mock_dependencies):
     mock_cpp_encoder.encode_docs.return_value = dummy_d_embs
     
     # Create encoder
-    encoder = LateInteractionEncoder(model_path, tokenizer_path)
+    encoder = LateEmbedder(model_path, tokenizer_path)
     
     assert encoder.query_marker_id == 1
     assert encoder.doc_marker_id == 2
@@ -61,7 +61,7 @@ def test_encoder_init_and_encode(mock_cpp_encoder_cls, mock_dependencies):
     mock_cpp_encoder.encode_docs.assert_called_with(["test doc"], 3, True)
     assert np.array_equal(d_embs, dummy_d_embs)
 
-@patch("intextus.encoder.CppIntextusEncoder")
+@patch("limbed.encoder.CppLateEmbedder")
 def test_encoder_init_with_directory(mock_cpp_encoder_cls):
     temp_dir = tempfile.TemporaryDirectory()
     model_path = os.path.join(temp_dir.name, "model.onnx")
@@ -72,7 +72,7 @@ def test_encoder_init_with_directory(mock_cpp_encoder_cls):
     with open(tokenizer_path, "w") as f:
         f.write('{"vocab": {}}')
         
-    encoder = LateInteractionEncoder(temp_dir.name)
+    encoder = LateEmbedder(temp_dir.name)
     
     mock_cpp_encoder_cls.assert_called_with(
         model_path,
@@ -94,32 +94,32 @@ def test_encoder_init_with_directory(mock_cpp_encoder_cls):
 @pytest.mark.parametrize("model_alias,expected_repo_id,expected_params", [
     (
         "mxbai-edge-colbert-v0-17m",
-        "intextus/mxbai-edge-colbert-v0-17m-onnx",
+        "thlurte/mxbai-edge-colbert-v0-17m-onnx",
         {"do_lower": False, "num_threads": 0, "query_m": 1, "doc_m": 2, "cls": 101, "sep": 102, "pad": 0, "mask": 103, "vocab": 250000}
     ),
     (
         "colbertv2.0",
-        "intextus/colbertv2.0-onnx",
+        "thlurte/colbertv2.0-onnx",
         {"do_lower": True, "num_threads": 0, "query_m": 1, "doc_m": 2, "cls": 101, "sep": 102, "pad": 0, "mask": 103, "vocab": 250000}
     ),
     (
         "colbertv2",
-        "intextus/colbertv2.0-onnx",
+        "thlurte/colbertv2.0-onnx",
         {"do_lower": True, "num_threads": 0, "query_m": 1, "doc_m": 2, "cls": 101, "sep": 102, "pad": 0, "mask": 103, "vocab": 250000}
     ),
     (
         "jina-colbert-v2",
-        "intextus/jina-colbert-v2-onnx",
+        "thlurte/jina-colbert-v2-onnx",
         {"do_lower": False, "num_threads": 0, "query_m": 250002, "doc_m": 250003, "cls": 0, "sep": 2, "pad": 1, "mask": 250001, "vocab": 250000}
     ),
     (
         "answerai-colbert-small-v1",
-        "intextus/answerai-colbert-small-v1-onnx",
+        "thlurte/answerai-colbert-small-v1-onnx",
         {"do_lower": False, "num_threads": 0, "query_m": 1, "doc_m": 2, "cls": 101, "sep": 102, "pad": 0, "mask": 103, "vocab": 250000}
     )
 ])
-@patch("intextus.encoder.CppIntextusEncoder")
-@patch("intextus.encoder.os.path.exists")
+@patch("limbed.encoder.CppLateEmbedder")
+@patch("limbed.encoder.os.path.exists")
 @patch("huggingface_hub.hf_hub_download")
 def test_encoder_init_with_hf_hub(mock_hf_download, mock_exists, mock_cpp_encoder_cls, model_alias, expected_repo_id, expected_params):
     def exists_side_effect(path):
@@ -130,7 +130,7 @@ def test_encoder_init_with_hf_hub(mock_hf_download, mock_exists, mock_cpp_encode
     
     mock_hf_download.side_effect = lambda repo_id, filename: f"/mocked/path/{repo_id}/{filename}"
     
-    encoder = LateInteractionEncoder(model_alias)
+    encoder = LateEmbedder(model_alias)
     
     mock_hf_download.assert_any_call(repo_id=expected_repo_id, filename="model.onnx")
     mock_hf_download.assert_any_call(repo_id=expected_repo_id, filename="tokenizer.json")
@@ -150,10 +150,13 @@ def test_encoder_init_with_hf_hub(mock_hf_download, mock_exists, mock_cpp_encode
         []
     )
 
+def test_alias_backward_compatibility():
+    assert LateInteractionEncoder is LateEmbedder
+
 def test_real_embedding_end_to_end():
     # End-to-end validation with the real default C++ engine and ONNX model
     print("\nRunning real end-to-end embedding test...")
-    encoder = LateInteractionEncoder("mxbai-edge-colbert-v0-17m")
+    encoder = LateEmbedder("mxbai-edge-colbert-v0-17m")
     
     # 1. Check metadata and properties
     assert encoder.query_marker_id >= 0
@@ -176,7 +179,7 @@ def test_real_embedding_end_to_end():
     assert d_embs.shape[2] == 48
     
     # 4. Test MaxSim calculation (using the accelerated C++ version and python fallback)
-    from intextus import compute_maxsim
+    from limbed import compute_maxsim
     
     score = compute_maxsim(q_embs[0], d_embs[0])
     assert isinstance(score, float)
@@ -190,7 +193,7 @@ def test_real_embedding_no_tokenizers_package():
     # even when the python tokenizers package is not available.
     import sys
     with patch.dict(sys.modules, {"tokenizers": None}):
-        encoder = LateInteractionEncoder("mxbai-edge-colbert-v0-17m")
+        encoder = LateEmbedder("mxbai-edge-colbert-v0-17m")
         assert len(encoder.skiplist_arr) > 0
         
         # Test basic encoding works

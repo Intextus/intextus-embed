@@ -3,12 +3,12 @@ from typing import List, Union
 import numpy as np
 
 # We import the C++ class under an alias to expose it via our Python wrapper
-from ._core import IntextusEncoder as CppIntextusEncoder
+from ._core import LateEmbedder as CppLateEmbedder
 
-class LateInteractionEncoder:
+class LateEmbedder:
     def __init__(
         self, 
-        model_name_or_path: str = "intextus/mxbai-edge-colbert-v0-17m-onnx", 
+        model_name_or_path: str = "thlurte/mxbai-edge-colbert-v0-17m-onnx", 
         tokenizer_path: str = None, 
         query_marker: str = "[Q]", 
         doc_marker: str = "[D]",
@@ -67,13 +67,13 @@ class LateInteractionEncoder:
         else:
             repo_id = model_name_or_path
             supported_mappings = {
-                "mxbai-edge-colbert-v0-17m": "intextus/mxbai-edge-colbert-v0-17m-onnx",
-                "mxbai-edge-colbert-v0-32m": "intextus/mxbai-edge-colbert-v0-32m-onnx",
-                "lateon": "intextus/lateon-onnx",
-                "colbertv2.0": "intextus/colbertv2.0-onnx",
-                "colbertv2": "intextus/colbertv2.0-onnx",
-                "jina-colbert-v2": "intextus/jina-colbert-v2-onnx",
-                "answerai-colbert-small-v1": "intextus/answerai-colbert-small-v1-onnx"
+                "mxbai-edge-colbert-v0-17m": "thlurte/mxbai-edge-colbert-v0-17m-onnx",
+                "mxbai-edge-colbert-v0-32m": "thlurte/mxbai-edge-colbert-v0-32m-onnx",
+                "lateon": "thlurte/lateon-onnx",
+                "colbertv2.0": "thlurte/colbertv2.0-onnx",
+                "colbertv2": "thlurte/colbertv2.0-onnx",
+                "jina-colbert-v2": "thlurte/jina-colbert-v2-onnx",
+                "answerai-colbert-small-v1": "thlurte/answerai-colbert-small-v1-onnx"
             }
             if repo_id in supported_mappings:
                 repo_id = supported_mappings[repo_id]
@@ -181,7 +181,7 @@ class LateInteractionEncoder:
             pass
 
         # Initialize C++ core encoder
-        self._encoder = CppIntextusEncoder(
+        self._encoder = CppLateEmbedder(
             model_path,
             tokenizer_path,
             do_lower_case,
@@ -243,3 +243,6 @@ class LateInteractionEncoder:
         if isinstance(docs, str):
             docs = [docs]
         return self._encoder.encode_docs(docs, max_length, normalize)
+
+# Backwards compatibility alias
+LateInteractionEncoder = LateEmbedder

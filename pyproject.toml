@@ -3,7 +3,7 @@ requires = ["scikit-build-core>=0.5.0", "nanobind>=2.0.0"]
 build-backend = "scikit_build_core.build"
 
 [project]
-name = "intextus-embed"
+name = "limbed-py"
 version = "0.1.5"
 description = "A lightweight, zero-PyTorch ONNX encoder for generic ColBERT models."
 readme = "README.md"
@@ -34,5 +34,5 @@ dependencies = [
 [tool.scikit-build]
 cmake.build-type = "Release"
 # This tells scikit-build-core to look inside the 'src' directory for your python packages
-wheel.packages = ["src/intextus"]
-sdist.include = ["src/intextus/*", "CMakeLists.txt"]
+wheel.packages = ["src/limbed"]
+sdist.include = ["src/limbed/*", "CMakeLists.txt"]

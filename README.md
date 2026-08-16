@@ -1,11 +1,11 @@
-# intextus
+# limbed
 
-[![PyPI Version](https://img.shields.io/pypi/v/intextus-embed.svg)](https://pypi.org/project/intextus-embed/)
+[![PyPI Version](https://img.shields.io/pypi/v/limbed-py.svg)](https://pypi.org/project/limbed-py/)
 [![CI/CD Status](https://github.com/intextus/intextus-embed/actions/workflows/publish.yml/badge.svg)](https://github.com/intextus/intextus-embed/actions/workflows/publish.yml)
-[![PyPI - Downloads](https://img.shields.io/pypi/dm/intextus-embed)](https://pypi.org/project/intextus-embed/)
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://pypi.org/project/intextus-embed/)
-[![Platforms](https://img.shields.io/badge/platforms-Linux%20%7C%20macOS%20%7C%20Windows-blue.svg)](https://pypi.org/project/intextus-embed/)
-[![Architectures](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64%20%7C%20aarch64-lightgrey.svg)](https://pypi.org/project/intextus-embed/)
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/limbed-py)](https://pypi.org/project/limbed-py/)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://pypi.org/project/limbed-py/)
+[![Platforms](https://img.shields.io/badge/platforms-Linux%20%7C%20macOS%20%7C%20Windows-blue.svg)](https://pypi.org/project/limbed-py/)
+[![Architectures](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64%20%7C%20aarch64-lightgrey.svg)](https://pypi.org/project/limbed-py/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ColBERT embedding and MaxSim scoring without PyTorch. Uses a native C++ extension (ONNX Runtime + tokenizers-cpp) so you don't need to pull in 2 GB of deep learning dependencies just to encode some text.
@@ -13,7 +13,7 @@ ColBERT embedding and MaxSim scoring without PyTorch. Uses a native C++ extensio
 ## Install
 
 ```bash
-pip install intextus-embed
+pip install limbed-py
 ```
 
 Only runtime deps are `numpy` and `huggingface-hub`.
@@ -21,9 +21,9 @@ Only runtime deps are `numpy` and `huggingface-hub`.
 ## Usage
 
 ```python
-from intextus import LateInteractionEncoder, compute_maxsim
+from limbed import LateEmbedder, compute_maxsim
 
-model = LateInteractionEncoder()  # downloads intextus/mxbai-edge-colbert-v0-17m-onnx
+model = LateEmbedder()  # downloads thlurte/mxbai-edge-colbert-v0-17m-onnx
 
 q = model.encode_queries("What is late interaction?")
 d = model.encode_docs("ColBERT computes token-level similarity.")
@@ -35,29 +35,29 @@ print(score)
 You can also point it at a local directory with `model.onnx` and `tokenizer.json`:
 
 ```python
-model = LateInteractionEncoder("./my-model/")
+model = LateEmbedder("./my-model/")
 ```
 
 ## Models
 
 | Alias | Repo | Size | Dim | Notes |
 |---|---|---|---|---|
-| `mxbai-edge-colbert-v0-17m` | `intextus/mxbai-edge-colbert-v0-17m-onnx` | 66 MB | 48 | Default |
-| `mxbai-edge-colbert-v0-32m` | `intextus/mxbai-edge-colbert-v0-32m-onnx` | 124 MB | 64 | |
-| `colbertv2.0` | `intextus/colbertv2.0-onnx` | 438 MB | 128 | Standard ColBERTv2.0 BERT-based model |
-| `answerai-colbert-small-v1` | `intextus/answerai-colbert-small-v1-onnx` | 135 MB | 96 | Lightweight, high-performance model |
-| `jina-colbert-v2` | `intextus/jina-colbert-v2-onnx` | 2.23 GB | 128 | XLM-RoBERTa multilingual model |
-| `lateon` | `intextus/lateon-onnx` | 580 MB | 128 | Case-sensitive: use `do_lower_case=False` |
+| `mxbai-edge-colbert-v0-17m` | `thlurte/mxbai-edge-colbert-v0-17m-onnx` | 66 MB | 48 | Default |
+| `mxbai-edge-colbert-v0-32m` | `thlurte/mxbai-edge-colbert-v0-32m-onnx` | 124 MB | 64 | |
+| `colbertv2.0` | `thlurte/colbertv2.0-onnx` | 438 MB | 128 | Standard ColBERTv2.0 BERT-based model |
+| `answerai-colbert-small-v1` | `thlurte/answerai-colbert-small-v1-onnx` | 135 MB | 96 | Lightweight, high-performance model |
+| `jina-colbert-v2` | `thlurte/jina-colbert-v2-onnx` | 2.23 GB | 128 | XLM-RoBERTa multilingual model |
+| `lateon` | `thlurte/lateon-onnx` | 580 MB | 128 | Case-sensitive: use `do_lower_case=False` |
 
 Any ColBERT ONNX model should work if you put `model.onnx` and `tokenizer.json` in a folder and pass the path.
 
 ## Benchmarks
 
-The following benchmark was run on CPU using 20 queries (max length 32) and 20 documents (max length 256), comparing `intextus` against `fastembed` execution:
+The following benchmark was run on CPU using 20 queries (max length 32) and 20 documents (max length 256), comparing `limbed` against `fastembed` execution:
 
 ### Performance (Throughput & Speedup)
 
-| Model | Operation | `intextus` Throughput | `fastembed` Throughput | Speedup (Wall-clock) |
+| Model | Operation | `limbed` Throughput | `fastembed` Throughput | Speedup (Wall-clock) |
 |---|---|---|---|---|
 | **ColBERTv2.0** | Queries | 71.3 QPS | 31.6 QPS | **2.25x** |
 | **ColBERTv2.0** | Documents | 93.8 DPS | 66.1 DPS | **1.42x** |

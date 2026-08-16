@@ -20,7 +20,7 @@ def compute_maxsim(query_embeddings: np.ndarray, doc_embeddings: np.ndarray) -> 
         q = np.ascontiguousarray(query_embeddings, dtype=np.float32)
         d = np.ascontiguousarray(doc_embeddings, dtype=np.float32)
         return cpp_compute_maxsim(q, d)
-    except (ImportError, AttributeError, stdexcept) if 'stdexcept' in globals() else ImportError:
+    except (ImportError, AttributeError, Exception):
         pass
 
     # Fallback to pure numpy implementation

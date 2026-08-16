@@ -6,7 +6,7 @@ import sys
 def get_latest_pypi_version(package_name):
     url = f"https://pypi.org/pypi/{package_name}/json"
     try:
-        req = urllib.request.Request(url, headers={'User-Agent': 'intextus-bump-script'})
+        req = urllib.request.Request(url, headers={'User-Agent': 'limbed-bump-script'})
         with urllib.request.urlopen(req) as response:
             data = json.loads(response.read().decode())
             return data["info"]["version"]
@@ -44,7 +44,7 @@ def update_pyproject_version(new_version):
     print(f"Successfully updated pyproject.toml version to: {new_version}")
 
 def main():
-    package_name = "intextus-embed"
+    package_name = "limbed-py"
     current_pypi_version = get_latest_pypi_version(package_name)
     print(f"Current PyPI version: {current_pypi_version}")
     

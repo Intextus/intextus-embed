@@ -145,7 +145,7 @@ cython_debug/
 *.swp
 *.swo
 
-# Local model & tokenizer weights (intextus-specific)
+# Local model & tokenizer weights (limbed-specific)
 model.onnx
 tokenizer.json
 model_temp.onnx
