@@ -43,6 +43,41 @@ static std::string LoadBytesFromFile(const std::string& path) {
     return buf;
 }
 
+// Some HF ColBERT tokenizer.json files bake in query-style MASK padding /
+// truncation (e.g. length 31). We apply ColBERT packing ourselves, so clear
+// those so Encode() returns only real tokens (+ specials).
+static void NullifyJsonObjectKey(std::string& json, const std::string& key) {
+    const std::string pattern = "\"" + key + "\":";
+    size_t pos = json.find(pattern);
+    if (pos == std::string::npos) {
+        return;
+    }
+    size_t val = pos + pattern.size();
+    while (val < json.size() && std::isspace(static_cast<unsigned char>(json[val]))) {
+        ++val;
+    }
+    if (val >= json.size() || json.compare(val, 4, "null") == 0) {
+        return;
+    }
+    if (json[val] != '{') {
+        return;
+    }
+    int depth = 0;
+    size_t end = val;
+    for (; end < json.size(); ++end) {
+        if (json[end] == '{') {
+            ++depth;
+        } else if (json[end] == '}') {
+            --depth;
+            if (depth == 0) {
+                ++end;
+                break;
+            }
+        }
+    }
+    json.replace(val, end - val, "null");
+}
+
 class LateEmbedder {
 public:
     int query_marker_id_ = -1;
@@ -70,8 +105,10 @@ public:
         pad_token_id_(pad_token_id),
         mask_token_id_(mask_token_id) {
 
-        // 1. Initialize tokenizer
+        // 1. Initialize tokenizer (disable baked-in padding/truncation)
         std::string tok_blob = LoadBytesFromFile(tokenizer_path);
+        NullifyJsonObjectKey(tok_blob, "padding");
+        NullifyJsonObjectKey(tok_blob, "truncation");
         tokenizer_ = tokenizers::Tokenizer::FromBlobJSON(tok_blob);
 
         // 2. Initialize ONNX runtime session
@@ -195,11 +232,12 @@ private:
 
             std::vector<int> raw_ids = tokenizer_->Encode(*text_ptr);
 
-            // Strip auto-inserted CLS/SEP
+            // Strip specials and any residual PAD/MASK from tokenizer config.
+            // We re-insert CLS/marker/SEP and apply ColBERT padding ourselves.
             std::vector<int64_t>& clean_ids = batch_clean_ids[b];
             clean_ids.reserve(raw_ids.size());
             for (int id : raw_ids) {
-                if (id != cls_id && id != sep_id) {
+                if (id != cls_id && id != sep_id && id != pad_id && id != mask_id) {
                     clean_ids.push_back(id);
                 }
             }
