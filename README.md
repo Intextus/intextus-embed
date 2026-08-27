@@ -3,7 +3,7 @@
 [![PyPI Version](https://img.shields.io/pypi/v/limbed-py.svg)](https://pypi.org/project/limbed-py/)
 [![CI/CD Status](https://github.com/thlurte/limbed/actions/workflows/publish.yml/badge.svg)](https://github.com/thlurte/limbed/actions/workflows/publish.yml)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/limbed-py)](https://pypi.org/project/limbed-py/)
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://pypi.org/project/limbed-py/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://pypi.org/project/limbed-py/)
 [![Platforms](https://img.shields.io/badge/platforms-Linux%20%7C%20macOS%20%7C%20Windows-blue.svg)](https://pypi.org/project/limbed-py/)
 [![Architectures](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64%20%7C%20aarch64-lightgrey.svg)](https://pypi.org/project/limbed-py/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -90,9 +90,9 @@ Precompiled wheels are published to PyPI for the following environments:
 
 | Operating System | Architecture | Python Versions | Notes |
 | --- | --- | --- | --- |
-| **Linux** | `x86_64`, `aarch64` | 3.9, 3.10, 3.11, 3.12, 3.13, 3.14 | Built on `manylinux_2_28` (glibc-based) |
-| **macOS** | `arm64` (Apple Silicon) | 3.9, 3.10, 3.11, 3.12, 3.13, 3.14 | SDK/deployment target macOS 13.3+ |
-| **Windows** | `AMD64` (x86_64) | 3.9, 3.10, 3.11, 3.12, 3.13, 3.14 | |
+| **Linux** | `x86_64`, `aarch64` | 3.10, 3.11, 3.12, 3.13, 3.14 | Built on `manylinux_2_28` (glibc-based) |
+| **macOS** | `arm64` (Apple Silicon) | 3.10, 3.11, 3.12, 3.13, 3.14 | SDK/deployment target macOS 13.3+ |
+| **Windows** | `AMD64` (x86_64) | 3.10, 3.11, 3.12, 3.13, 3.14 | |
 
 > [!NOTE]
 > Other platforms (such as Intel-based macOS or ARM-based Windows) will fall back to compilation from the source distribution (`sdist`). This requires a local C++ compiler (supporting C++17) and CMake.
