@@ -121,35 +121,61 @@ class LateEmbedder:
                 # Default fallback rules
                 do_lower_case = "uncased" in model_name_or_path.lower() or "colbertv2" in model_name_or_path.lower()
 
-        # Determine token IDs dynamically if not provided
-        is_jina = False
+        # Resolve special / marker token IDs from tokenizer.json when possible.
+        # Families:
+        #   BERT ColBERT:     [CLS]=101, [SEP]=102, [PAD]=0, [MASK]=103, [unused0/1]=1/2
+        #   ModernBERT/mxbai: [CLS]=50281, [SEP]=50282, [PAD]=50283, [MASK]=50284, [unused0/1]=50285/50286
+        #   Jina ColBERT:     <s>=0, </s>=2, <pad>=1, <mask>=250001, [QueryMarker]/[DocumentMarker]
+        is_jina = "jina" in model_name_or_path.lower()
         vocab_size = 250000
+        vocab_tokens = {}
+        token_to_id = {}
         try:
             import json
             with open(tokenizer_path, 'r', encoding='utf-8') as f:
                 tok_data = json.load(f)
+
+            for added in tok_data.get("added_tokens", []) or []:
+                content = added.get("content")
+                tid = added.get("id")
+                if content is not None and tid is not None:
+                    token_to_id[content] = int(tid)
+                    vocab_size = max(vocab_size, int(tid) + 1)
+
             vocab = tok_data.get("model", {}).get("vocab", {})
             if vocab:
-                vocab_size = len(vocab)
                 if isinstance(vocab, list):
-                    vocab_tokens = {item[0] if isinstance(item, list) else item: i for i, item in enumerate(vocab)}
+                    vocab_tokens = {
+                        (item[0] if isinstance(item, list) else item): i
+                        for i, item in enumerate(vocab)
+                    }
                 else:
-                    vocab_tokens = vocab
-                
-                if "<s>" in vocab_tokens and vocab_tokens["<s>"] == 0:
-                    is_jina = True
+                    vocab_tokens = dict(vocab)
+                vocab_size = max(vocab_size, len(vocab_tokens))
+                for tok_str, tid in vocab_tokens.items():
+                    token_to_id.setdefault(tok_str, int(tid))
+
+            if token_to_id.get("<s>") == 0:
+                is_jina = True
         except Exception:
             pass
 
-        if "jina" in model_name_or_path.lower():
-            is_jina = True
+        def _lookup_id(*candidates, default):
+            for name in candidates:
+                if name in token_to_id:
+                    return token_to_id[name]
+            return default
 
-        default_query_marker_id = 250002 if is_jina else 1
-        default_doc_marker_id = 250003 if is_jina else 2
-        default_cls_token_id = 0 if is_jina else 101
-        default_sep_token_id = 2 if is_jina else 102
-        default_pad_token_id = 1 if is_jina else 0
-        default_mask_token_id = 250001 if is_jina else 103
+        default_cls_token_id = _lookup_id("[CLS]", "<s>", default=(0 if is_jina else 101))
+        default_sep_token_id = _lookup_id("[SEP]", "</s>", default=(2 if is_jina else 102))
+        default_pad_token_id = _lookup_id("[PAD]", "<pad>", default=(1 if is_jina else 0))
+        default_mask_token_id = _lookup_id("[MASK]", "<mask>", default=(250001 if is_jina else 103))
+        default_query_marker_id = _lookup_id(
+            "[QueryMarker]", "[unused0]", default=(250002 if is_jina else 1)
+        )
+        default_doc_marker_id = _lookup_id(
+            "[DocumentMarker]", "[unused1]", default=(250003 if is_jina else 2)
+        )
 
         query_marker_id = query_marker_id if query_marker_id is not None else default_query_marker_id
         doc_marker_id = doc_marker_id if doc_marker_id is not None else default_doc_marker_id
@@ -165,14 +191,14 @@ class LateEmbedder:
         skip_list = []
         try:
             import string
-            vocab_tokens = locals().get("vocab_tokens")
-            if vocab_tokens:
-                for symbol in string.punctuation:
-                    if symbol in vocab_tokens:
-                        skip_list.append(vocab_tokens[symbol])
-            else:
+            for symbol in string.punctuation:
+                if symbol in vocab_tokens:
+                    skip_list.append(int(vocab_tokens[symbol]))
+            if not skip_list:
                 from tokenizers import Tokenizer
                 tok = Tokenizer.from_file(tokenizer_path)
+                tok.no_padding()
+                tok.no_truncation()
                 for symbol in string.punctuation:
                     ids = tok.encode(symbol, add_special_tokens=False).ids
                     if ids:
