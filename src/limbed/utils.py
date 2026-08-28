@@ -1,5 +1,5 @@
 import string
-from typing import Dict, Set
+from typing import Dict, Literal, Set, List
 import numpy as np
 
 def compute_maxsim(query_embeddings: np.ndarray, doc_embeddings: np.ndarray) -> float:
@@ -27,6 +27,29 @@ def compute_maxsim(query_embeddings: np.ndarray, doc_embeddings: np.ndarray) -> 
     scores = np.dot(query_embeddings, doc_embeddings.T)
     max_scores_per_query_token = np.max(scores, axis=1)
     return float(np.sum(max_scores_per_query_token))
+
+def compute_maxsim_late_chunked(
+    query_embeddings: np.ndarray,
+    chunk_embeddings: List[np.ndarray],
+    aggregation: Literal["max", "sum"] = "max",
+) -> float:
+    """
+    MaxSim score for a query against late-chunked document embeddings.
+
+    Computes MaxSim per chunk, then aggregates across chunks (default: max).
+    """
+    scores = [
+        compute_maxsim(query_embeddings, chunk)
+        for chunk in chunk_embeddings
+        if chunk.size > 0
+    ]
+    if not scores:
+        return 0.0
+    if aggregation == "max":
+        return max(scores)
+    if aggregation == "sum":
+        return float(sum(scores))
+    raise ValueError(f"Unsupported aggregation: {aggregation!r}")
 
 def get_punctuation_token_ids(
     vocab: Dict[str, int], 

@@ -38,6 +38,25 @@ You can also point it at a local directory with `model.onnx` and `tokenizer.json
 model = LateEmbedder("./my-model/")
 ```
 
+### Late chunking (long documents)
+
+For RAG, encode the **full document** (in model-sized windows when needed), then slice **retrieval chunks** from the contextualized token embeddings. Requires `pip install tokenizers`.
+
+```python
+from limbed import LateEmbedder, compute_maxsim_late_chunked
+
+model = LateEmbedder("jina-colbert-v2")  # 8192 context; BERT models use 512
+
+doc = "..."  # full document
+chunks = ["First paragraph.", "Second paragraph."]  # substrings of doc
+
+chunk_embs = model.encode_doc_late_chunked(doc, chunks)
+q = model.encode_queries("your query")
+score = compute_maxsim_late_chunked(q[0], chunk_embs)  # max over chunks
+```
+
+Documents longer than the model limit are encoded in overlapping windows (`window_overlap=64` by default). Chunks entirely inside one window retain full within-window context.
+
 ## Models
 
 | Alias | Repo | Size | Dim | Notes |

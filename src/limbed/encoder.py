@@ -1,9 +1,10 @@
 import os
-from typing import List, Union
+from typing import List, Optional, Union
 import numpy as np
 
 # We import the C++ class under an alias to expose it via our Python wrapper
 from ._core import LateEmbedder as CppLateEmbedder
+from .late_chunking import encode_document_late_chunked, resolve_model_max_length
 
 class LateEmbedder:
     def __init__(
@@ -222,6 +223,10 @@ class LateEmbedder:
             skip_list
         )
 
+        self.tokenizer_path = tokenizer_path
+        self.do_lower_case = do_lower_case
+        self.model_max_length = resolve_model_max_length(model_name_or_path)
+
     @property
     def query_marker_id(self) -> int:
         return self._encoder.query_marker_id
@@ -269,6 +274,44 @@ class LateEmbedder:
         if isinstance(docs, str):
             docs = [docs]
         return self._encoder.encode_docs(docs, max_length, normalize)
+
+    def encode_doc_late_chunked(
+        self,
+        doc: str,
+        chunks: List[str],
+        max_length: Optional[int] = None,
+        window_overlap: int = 64,
+        normalize: bool = True,
+    ) -> List[np.ndarray]:
+        """
+        Late-chunk a document into multi-vector ColBERT embeddings per retrieval chunk.
+
+        The full document is encoded in one or more model-sized windows (when longer
+        than ``model_max_length``). Each ``chunk`` must appear as a substring of
+        ``doc`` (after the same lowercasing applied at encode time). Returns one
+        array per chunk with shape ``(n_tokens, dim)`` suitable for MaxSim scoring.
+
+        Args:
+            doc: Full document text.
+            chunks: Retrieval chunks (paragraphs, sentences, etc.) that are
+                substrings of ``doc``.
+            max_length: Optional cap on packed sequence length (defaults to
+                ``model_max_length``).
+            window_overlap: Token overlap between consecutive model windows when
+                the document exceeds the model limit.
+            normalize: Whether to L2-normalize token embeddings.
+
+        Returns:
+            List of float32 arrays, one per chunk.
+        """
+        return encode_document_late_chunked(
+            self,
+            doc,
+            chunks,
+            max_length=max_length,
+            window_overlap=window_overlap,
+            normalize=normalize,
+        )
 
 # Backwards compatibility alias
 LateInteractionEncoder = LateEmbedder
