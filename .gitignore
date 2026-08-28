@@ -162,3 +162,4 @@ models/
 scripts/export_onnx.py
 scripts/publish_models.py
 scripts/benchmark.py
+scripts/compare_late_chunking.py
